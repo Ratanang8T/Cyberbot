@@ -1,42 +1,51 @@
-name: C# CI Pipeline
+name: CyberSecurity_Awareness_Bot
 
 on:
   push:
-    branches:
-      - master
+    branches: [ "master" ]
   pull_request:
-    branches:
-      - master
+    branches: [ "master" ]
 
 jobs:
   build:
     runs-on: windows-latest
 
+    env:
+      Solution_Name: Cyberbot.sln # Updated to match the project namespace
+      Project_Path: Cyberbot/Cyberbot.csproj # Assuming the project file exists in a folder named "Cyberbot"
+
     steps:
-      # Step 1: Checkout the repository
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      # Step 2: Set up MSBuild
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1
+    - name: Install .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x # Adjust to your project's .NET version
 
-      # Step 3: Set up NuGet
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@v1
+    - name: Validate Paths
+      run: |
+        if (-not (Test-Path -Path "${{ env.Solution_Name }}")) {
+          Write-Error "❌ Solution file not found!"
+          exit 1
+        }
+        if (-not (Test-Path -Path "${{ env.Project_Path }}")) {
+          Write-Error "❌ Project file not found!"
+          exit 1
+        }
+      shell: pwsh
 
-      # Step 4: Restore NuGet packages
-      - name: Restore NuGet packages
-        run: nuget restore "Cyberbot.sln" # Match the solution file name to the project
+    - name: Restore Dependencies
+      run: dotnet restore ${{ env.Solution_Name }}
 
-      # Step 5: Check Code Formatting
-      - name: Check Code Formatting
-        run: dotnet format --verify-no-changes "Cyberbot.sln" || exit 1 # Match the solution file name
+    - name: Build Project
+      run: dotnet build ${{ env.Solution_Name }} --configuration Release --no-restore
 
-      # Step 6: Build the Project
-      - name: Build Project
-        run: msbuild "Cyberbot.sln" /p:Configuration=Release # Match the solution file name
+    - name: Run Code Formatting Check
+      run: dotnet format --verify-no-changes ${{ env.Solution_Name }} || exit 1
 
-      # Step 7: Run Unit Tests (Optional but recommended)
-      - name: Run Unit Tests
-        run: dotnet test "Cyberbot.sln" --configuration Release --no-build --verbosity normal
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Build Output
+        path: bin/Release/net9.0 # Adjust based on your target framework
