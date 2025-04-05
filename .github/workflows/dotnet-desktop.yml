@@ -1,4 +1,4 @@
-name: CyberSecurity_Awareness_Bot
+name: .NET Build and Validation
 
 on:
   push:
@@ -11,41 +11,44 @@ jobs:
     runs-on: windows-latest
 
     env:
-      Solution_Name: Cyberbot.sln # Updated to match the project namespace
-      Project_Path: Cyberbot/Cyberbot.csproj # Assuming the project file exists in a folder named "Cyberbot"
+      Project_Path: Cyberbot/Cyberbot.csproj # Path to the project file
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Install .NET SDK
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 9.0.x # Adjust to your project's .NET version
+      - name: Cache NuGet Packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
-    - name: Validate Paths
-      run: |
-        if (-not (Test-Path -Path "${{ env.Solution_Name }}")) {
-          Write-Error "❌ Solution file not found!"
-          exit 1
-        }
-        if (-not (Test-Path -Path "${{ env.Project_Path }}")) {
-          Write-Error "❌ Project file not found!"
-          exit 1
-        }
-      shell: pwsh
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x # Adjust to your project's .NET version
 
-    - name: Restore Dependencies
-      run: dotnet restore ${{ env.Solution_Name }}
+      - name: Validate Paths
+        run: |
+          if (-not (Test-Path -Path "${{ env.Project_Path }}")) {
+            Write-Error "❌ Project file not found!"
+            exit 1
+          }
+        shell: pwsh
 
-    - name: Build Project
-      run: dotnet build ${{ env.Solution_Name }} --configuration Release --no-restore
+      - name: Restore Dependencies
+        run: dotnet restore ${{ env.Project_Path }}
 
-    - name: Run Code Formatting Check
-      run: dotnet format --verify-no-changes ${{ env.Solution_Name }} || exit 1
+      - name: Run Code Formatting Check
+        run: dotnet format --verify-no-changes ${{ env.Project_Path }} || exit 1
 
-    - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: Build Output
-        path: bin/Release/net9.0 # Adjust based on your target framework
+      - name: Build Project
+        run: dotnet build ${{ env.Project_Path }} --configuration Release --no-restore
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build Output
+          path: bin/Release/net9.0 # Adjust based on your target framework
